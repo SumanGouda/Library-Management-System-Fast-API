@@ -1,0 +1,79 @@
+[
+    {
+        "isbn": "9780451524935",
+        "coustomer_id": 123,
+        "issue_date": "2025-12-16",
+        "due_date": "2025-12-16",
+        "returned": true
+    },
+    {
+        "isbn": "9780451524935",
+        "coustomer_id": 123,
+        "issue_date": "2025-12-16",
+        "due_date": "2025-12-16",
+        "returned": true
+    },
+    {
+        "isbn": "9780451524935",
+        "coustomer_id": 123,
+        "issue_date": "2025-12-16",
+        "due_date": "2025-12-16",
+        "returned": true
+    },
+    {
+        "isbn": "9780451524935",
+        "coustomer_id": 123,
+        "issue_date": "2025-12-16",
+        "due_date": "2025-12-16",
+        "returned": true
+    },
+    {
+        "isbn": "9780451524935",
+        "coustomer_id": 123,
+        "issue_date": "2025-12-16",
+        "due_date": "2026-01-15",
+        "returned": false
+    },
+    {
+        "isbn": "9780804139038",
+        "coustomer_id": 12,
+        "issue_date": "2025-12-16",
+        "due_date": "2025-12-16",
+        "returned": true
+    },
+    {
+        "isbn": "9780804139038",
+        "coustomer_id": 12,
+        "issue_date": "2025-12-16",
+        "due_date": "2025-12-16",
+        "returned": true
+    },
+    {
+        "isbn": "9780062316097",
+        "coustomer_id": 12,
+        "issue_date": "2025-12-16",
+        "due_date": "2026-01-15",
+        "returned": false
+    },
+    {
+        "isbn": "9780804139038",
+        "coustomer_id": 12,
+        "issue_date": "2025-12-16",
+        "due_date": "2025-12-16",
+        "returned": true
+    },
+    {
+        "isbn": "9780804139038",
+        "coustomer_id": 12,
+        "issue_date": "2025-12-16",
+        "due_date": "2025-12-16",
+        "returned": true
+    },
+    {
+        "isbn": "9780804139038",
+        "coustomer_id": 12,
+        "issue_date": "2025-12-16",
+        "due_date": "2026-01-15",
+        "returned": false
+    }
+]

@@ -1,0 +1,26 @@
+[
+    {
+        "title": "Sapiens",
+        "author": "Yuval Noah Harari",
+        "pages": 464,
+        "available": false,
+        "isbn": "9780062316097",
+        "genre": "Science"
+    },
+    {
+        "title": "The Martian",
+        "author": "Andy Weir",
+        "pages": 333,
+        "available": false,
+        "isbn": "9780804139038",
+        "genre": "Fiction"
+    },
+    {
+        "title": "Nineteen Eighty-four",
+        "author": "George Orwell",
+        "pages": 326,
+        "available": false,
+        "isbn": "9780451524935",
+        "genre": "London (England)"
+    }
+]
