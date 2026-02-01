@@ -22,5 +22,13 @@
         "available": false,
         "isbn": "9780451524935",
         "genre": "London (England)"
+    },
+    {
+        "title": "Atomic Habits",
+        "author": "James Clear",
+        "pages": 320,
+        "available": false,
+        "isbn": "9781847941831",
+        "genre": "General"
     }
 ]

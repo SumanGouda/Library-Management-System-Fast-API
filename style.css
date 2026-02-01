@@ -145,7 +145,7 @@
     display: inline-block !important;
 }
 
-/* ===== RETURN / ISSUE BUTTONS ===== */
+/* ===== ISSUE BUTTONS ===== */
 .st-key-button-77,
 .st-key-button-77 * {
   background: transparent !important;
@@ -241,7 +241,7 @@
   cursor: not-allowed !important;
 }
 
-/* Return Button */
+/* ===== RETURN BUTTONS ===== */
 .st-key-button-78,
 .st-key-button-78 * {
   background: transparent !important;
@@ -345,3 +345,202 @@
   cursor: not-allowed !important;
 }
 
+/* ===== OPEN DB BUTTONS ===== */
+.st-key-open-db,
+.st-key-open-db * {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* Main button */
+.st-key-open-db {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+
+  color: #ffffff !important;
+  cursor: pointer !important;
+  font-family: Eina01, sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 800 !important;
+
+  min-height: 40px !important;
+  padding: 7px 20px !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  position: relative !important;
+  border-radius: 80px !important;
+
+  z-index: 1 !important;
+}
+
+/* Remove Streamlit inner wrappers */
+.st-key-open-db > div,
+.st-key-open-db > div > span {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* OUTER GRADIENT (border / base layer) */
+.st-key-open-db::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+
+  background-image: linear-gradient(
+    92.83deg,
+    #ff7426 0%,
+    #f93a13 100%
+  ) !important;
+
+  border-radius: 80px !important;
+  z-index: -2 !important;
+}
+
+/* INNER DARK LAYER */
+.st-key-open-db::after {
+  content: "" !important;
+  position: absolute !important;
+
+  inset: 3px !important;
+  border-radius: 80px !important;
+
+  background-image: linear-gradient(
+    #541a0f 0%,
+    #0c0d0d 100%
+  ) !important;
+
+  z-index: -1 !important;
+  transition: all 120ms ease-out !important;
+}
+
+/* Hover: dark layer disappears */
+.st-key-open-db:hover::after {
+  inset: 0 !important;
+  opacity: 0 !important;
+}
+
+/* Active */
+.st-key-open-db:active {
+  color: #cccccc !important;
+}
+
+.st-key-open-db:active::before {
+  background-image: linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.2),
+      rgba(0, 0, 0, 0.2)
+    ),
+    linear-gradient(92.83deg, #ff7426 0%, #f93a13 100%) !important;
+}
+
+.st-key-open-db:active::after {
+  inset: 3px !important;
+  opacity: 1 !important;
+}
+
+/* Disabled */
+.st-key-open-db:disabled {
+  opacity: 0.3 !important;
+  cursor: not-allowed !important;
+}
+
+/* ===== BOROWWER BUTTONS ===== */
+.st-key-borowwer,
+.st-key-borowwer * {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* Main button */
+.st-key-borowwer {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+
+  color: #ffffff !important;
+  cursor: pointer !important;
+  font-family: CerebriSans-Regular,-apple-system,system-ui,Roboto,sans-serif !important;
+  font-size: 16px !important;
+  font-weight: bold !important;
+
+  min-height: 40px !important;         
+  padding: 7px 20px !important;       
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  position: relative !important;
+  border-radius: 100px !important;
+
+  z-index: 1 !important;
+}
+
+/* Inner Streamlit div & span */
+.st-key-borowwer > div,
+.st-key-borowwer > div > span {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Gradient layer */
+.st-key-borowwer::after {
+  content: "" !important;
+  position: absolute !important;
+
+  inset: 3px !important;               /* thinner border look */
+  border-radius: 100px !important;
+
+  background-image: linear-gradient(
+    92.83deg,
+    #ff7426 0%,
+    #f93a13 100%
+  ) !important;
+
+  z-index: -1 !important;
+  transition: inset 120ms ease-out !important;
+}
+
+/* Shadow layer */
+.st-key-borowwer::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: -2.5px !important;
+  background-color: rgba(249, 58, 19, 0.32) !important; /* exact shadow */
+  border-radius: 100px !important;
+  z-index: -2 !important; /* behind gradient */
+}
+
+/* Hover */
+.st-key-borowwer:hover::after {
+  inset: 0 !important;
+}
+
+/* Active */
+.st-key-borowwer:active {
+  color: #dddddd !important;
+}
+
+.st-key-borowwer:active::after {
+  background-image: linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.2),
+      rgba(0, 0, 0, 0.2)
+    ),
+    linear-gradient(92.83deg, #ff7426 0%, #f93a13 100%) !important;
+
+  inset: 3px !important;
+}
+
+/* Disabled */
+.st-key-borowwer:disabled {
+  opacity: 0.3 !important;
+  cursor: not-allowed !important;
+}

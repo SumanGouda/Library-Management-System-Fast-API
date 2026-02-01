@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Dict
 import requests
 import json
 import os
@@ -11,7 +11,14 @@ GOOGLE_BOOKS_API_URL = "https://www.googleapis.com/books/v1/volumes"
 app = FastAPI()
 
 DB_FILE_PATH = "book_database.json" 
-books_db: List['Book'] = []
+books_map: Dict[str, Book] = {} 
+def load_data_from_json():
+    global books_map
+    if os.path.exists(DB_FILE_PATH):
+        with open(DB_FILE_PATH, "r") as f:
+            raw_data = json.load(f)
+            # Store in a dictionary for O(1) lookup
+            books_map = {record['isbn']: Book(**record) for record in raw_data}
 
 LOAN_DB_FILE_PATH = "loan_records.json"
 loans_db: List['LoanRecord'] = []
@@ -34,6 +41,12 @@ class LoanRecord(BaseModel):
 class ReturnRequest(BaseModel):
     isbn: str
     coustomer_id: int
+
+class RegisterCostomer(BaseModel):
+    coustomer_id : int
+    name : str
+    email_id : str
+    mobile_number : int
     
 # --- File I/O Helper Functions ---
 def load_data_from_json():
@@ -53,9 +66,8 @@ def load_data_from_json():
         print("Database file not found. Starting with an empty database.")
 
 def save_data_to_json():
-    """Saves the current global books list back to the JSON file."""
-    # Convert Pydantic models to dictionaries for JSON serialization
-    data_to_save = [book.model_dump() for book in books_db]
+    """Saves the current global books map back to the JSON file."""
+    data_to_save = [book.model_dump() for book in books_map.values()]
     try:
         with open(DB_FILE_PATH, "w") as f:
             json.dump(data_to_save, f, indent=4)
@@ -93,6 +105,48 @@ def save_loans_to_json():
             json.dump(json_list, f, indent=4)
     except Exception as e:
         print(f"Error saving loan records: {e}")       
+
+def register_user_json(user: RegisterCostomer):
+    try:
+        users_db = []
+        if os.path.exists("user_database.json"):
+            with open("user_database.json", "r") as f:
+                try:
+                    raw_data = json.load(f)
+                    users_db = [RegisterCostomer(**record) for record in raw_data]
+                except json.JSONDecodeError:
+                    users_db = []
+
+        # 1. Add user and Sort by coustomer_id
+        users_db.append(user)
+        # Sort the list based on the ID key
+        users_db.sort(key=lambda x: x.coustomer_id)
+
+        # 2. Save the new-sorted list
+        with open("user_database.json", "w") as f:
+            json.dump([u.model_dump() for u in users_db], f, indent=4)
+        
+        return user
+    except Exception as e:
+        raise Exception(f"Failed to save user: {str(e)}")
+
+# 3. Efficient Binary Search Helper
+def find_user_binary(target_id: int, users_list: list) -> bool:
+    low = 0
+    high = len(users_list) - 1
+
+    while low <= high:
+        mid = (low + high) // 2
+        mid_id = users_list[mid].get("coustomer_id")
+        
+        if mid_id == target_id:
+            return True # User found!
+        elif mid_id < target_id:
+            low = mid + 1
+        else:
+            high = mid - 1
+            
+    return False # User not found
         
 # Initialize the database on startup
 load_data_from_json()
@@ -135,87 +189,132 @@ def fetch_book_data_from_google(isbn: str) -> Optional[dict]:
         return None
 
 # --- FastAPI Endpoints ---
+@app.post("/customers/", response_model=RegisterCostomer, status_code=201, summary="Add a new customer record")
+def register_user(user: RegisterCostomer):
+    try:
+        users_db = []
+        file_path = "user_database.json"
+
+        # Load existing data
+        if os.path.exists(file_path):
+            with open(file_path, "r") as f:
+                try:
+                    users_db = json.load(f)
+                except json.JSONDecodeError:
+                    users_db = []
+
+        # Check if ID already exists (using binary search before adding)
+        if find_user_binary(user.coustomer_id, users_db):
+            raise HTTPException(status_code=400, detail="User ID already registered.")
+
+        # Add and Sort
+        users_db.append(user.model_dump())
+        users_db.sort(key=lambda x: x['coustomer_id'])
+
+        directory = os.path.dirname(file_path)
+        if directory and not os.path.exists(directory):
+            os.makedirs(directory)
+    
+        # Save sorted data
+        with open(file_path, "w") as f:
+            json.dump(users_db, f, indent=4)
+        
+        return {"message": "User registered successfully", "user": user}
+
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/books/", response_model=List[Book], summary="Retrieve all books from local database")
 def get_all_books():
-    """Returns the entire list of books loaded from the JSON file."""
-    if not books_db:
-        raise HTTPException(status_code=404, detail="Database is empty or not loaded.")
-    return books_db
+    global books_map
+    # Check if the map is empty
+    if not books_map:
+        return [] 
+    
+    # Return dictionary values as a list
+    return list(books_map.values())
 
 @app.get("/search-isbn/{isbn}", summary="Look up book details by ISBN using Google Books API")
 def lookup_book(isbn: str):
-    """Fetches detailed book information from Google Books API for frontend review."""
+    global books_map
     
-    # Check if the book is already in the database
-    if any(b.isbn == isbn for b in books_db):
+    # OPTIMIZED: Constant time check
+    if isbn in books_map:
         raise HTTPException(status_code=400, detail=f"Book with ISBN {isbn} is already in the database.")
         
     book_data = fetch_book_data_from_google(isbn)
     
     if book_data:
-        # We return the raw dictionary; the frontend will display it.
-        # We don't use response_model=Book here because we just return a dict of fetched data
         return book_data 
     else:
         raise HTTPException(status_code=404, detail=f"Book with ISBN {isbn} not found on Google Books API.")
-
+    
 @app.post("/books/", response_model=Book, status_code=201, summary="Add a new book record")
 def add_book(book: Book):
-    """Receives validated book data from the frontend and saves it to the local database."""
-    global books_db
+    global books_map
     
-    # Final check for duplicate ISBN
-    if any(b.isbn == book.isbn for b in books_db):
+    # OPTIMIZED: Instant check for duplicate
+    if book.isbn in books_map:
         raise HTTPException(status_code=400, detail="Book with this ISBN already exists.")
     
-    books_db.append(book)
-    save_data_to_json() 
+    # OPTIMIZED: O(1) Insertion
+    books_map[book.isbn] = book
     
+    save_data_to_json() 
     return book
 
 @app.post("/loans/", response_model=LoanRecord, status_code=201, summary="Record a new book loan")
 def issue_book(loan: LoanRecord):
-    """
-    1. Checks if the book exists and is available.
-    2. Records the loan to the loans_db.
-    3. Updates the book's status in books_db (sets available=False) and saves the main database.
-    """
-    global books_db, loans_db
+    # We reference books_map (dict)
+    global books_map, loans_db 
     
-    # 1. Check if the book exists and get a reference to it
-    book_to_update = next((b for b in books_db if b.isbn == loan.isbn), None)
+    # 1. Load users to verify registration
+    if not os.path.exists("user_database.json"):
+         raise HTTPException(status_code=500, detail="User database not found.")
+    
+    with open("user_database.json", "r") as f:
+        try:
+            users_list = json.load(f)
+        except json.JSONDecodeError:
+            users_list = []
+
+    # 2. APPLY BINARY SEARCH (O(log n))
+    if not find_user_binary(loan.coustomer_id, users_list):
+        raise HTTPException(
+            status_code=403, 
+            detail=f"Access Denied: Customer ID {loan.coustomer_id} is not registered."
+        )
+
+    # 3. HASH MAP LOOKUP (O(1))
+    book_to_update = books_map.get(loan.isbn)
     
     if not book_to_update:
-        # 404: Not Found
-        raise HTTPException(status_code=404, detail="Book with this ISBN does not exist.")
+        raise HTTPException(status_code=404, detail="Book with this ISBN does not exist in the library.")
         
     if not book_to_update.available:
-        # 400: Bad Request (Cannot issue an unavailable book)
-        raise HTTPException(status_code=400, detail="Book is currently not available for loan.")
-    
-    # 2. Record the loan
+        raise HTTPException(status_code=400, detail="This book is already issued to another customer.")
+
+    # 4. Finalize Loan
     loans_db.append(loan)
     save_loans_to_json()
     
-    # 3. Update the book's status (This updates the object in books_db)
+    # Update the object inside the map
     book_to_update.available = False
     
-    # Save the main database with the updated status
-    save_data_to_json()
+    # 5. Save changes back to file
+    save_data_to_json() 
     
     return loan
 
 @app.post("/loans/return/", response_model=Book, status_code=200, summary="Records a book return and updates availability")
 def return_book(return_request: ReturnRequest):
-    """
-    Accepts an ISBN in the request body, records the book as returned in loans_db,
-    and updates the book's status in the main books_db to available=True.
-    """
-    global books_db, loans_db
+    # Use the optimized books_map and loans_db
+    global books_map, loans_db
     isbn = return_request.isbn
     
-    # --- 1. Find the Book ---
-    book_to_update = next((b for b in books_db if b.isbn == isbn), None)
+    # --- 1. OPTIMIZED: Find the Book using Hash Map (O(1)) ---
+    book_to_update = books_map.get(isbn)
     
     if not book_to_update:
         raise HTTPException(status_code=404, detail=f"Book with ISBN {isbn} not found in collection.")
@@ -224,20 +323,21 @@ def return_book(return_request: ReturnRequest):
         raise HTTPException(status_code=400, detail="Book is already marked as available. No return needed.")
 
     # --- 2. Find the Active Loan Record ---
+    # We still search the list reversed to find the MOST RECENT active loan
     active_loan = next(
-        (loan for loan in reversed(loans_db) if loan.isbn == isbn and loan.returned == False), 
+        (loan for loan in reversed(loans_db) if loan.isbn == isbn and not loan.returned), 
         None
     )
     
     if not active_loan:
-        raise HTTPException(status_code=400, detail="No active loan record found for this ISBN. Check the main database for status.")
+        raise HTTPException(status_code=400, detail="No active loan record found for this ISBN.")
         
     # --- 3. Update the Loan Record ---
     active_loan.returned = True
     active_loan.due_date = date.today()  # Record the actual return date
-    save_loans_to_json() # Save the updated loan record
+    save_loans_to_json() 
 
-    # --- 4. Update Main Book Database Status ---
+    # --- 4. Update Status in Hash Map ---
     book_to_update.available = True 
     save_data_to_json() 
     
@@ -245,23 +345,56 @@ def return_book(return_request: ReturnRequest):
 
 @app.delete("/books/{isbn}", status_code=200, summary="Delete a book record by ISBN")
 def delete_book(isbn: str):
-    """Deletes a book from the main database if it exists and is available."""
-    global books_db
+    global books_map, loans_db
     
-    # Check if the book exists
-    book_to_delete = next((b for b in books_db if b.isbn == isbn), None)
+    # 1. OPTIMIZED: O(1) Lookup
+    book_to_delete = books_map.get(isbn)
     
     if not book_to_delete:
-        raise HTTPException(status_code=404, detail=f"Book with ISBN {isbn} not found in database.")
+        raise HTTPException(status_code=404, detail=f"Book with ISBN {isbn} not found.")
     
-    # Optionally, check if the book is currently on loan before deletion
+    # 2. Safety Check: Don't delete books that are currently out
     if not book_to_delete.available:
-        active_loan_exists = any(loan.isbn == isbn and loan.returned == False for loan in loans_db)
+        # Check if there is an unreturned loan
+        active_loan_exists = any(loan.isbn == isbn and not loan.returned for loan in loans_db)
         if active_loan_exists:
-            raise HTTPException(status_code=400, detail=f"Book with ISBN {isbn} is currently on loan and cannot be deleted.")
+            raise HTTPException(
+                status_code=400, 
+                detail="Cannot delete book: It is currently on loan."
+            )
 
-    # Remove the book from the global list
-    books_db = [b for b in books_db if b.isbn != isbn]
+    # 3. OPTIMIZED: O(1) Deletion from Hash Map
+    books_map.pop(isbn)
     save_data_to_json() 
     
-    return {"message": f"Book with ISBN {isbn} successfully deleted."}
+    return {"message": f"Book {isbn} successfully removed from catalog."}
+
+@app.get("/loans/coustomer/{coustomer_id}")
+def get_student_loans(coustomer_id: int):
+    try:
+        # 1. PRE-CHECK: Use Binary Search to verify user exists first
+        if os.path.exists("user_database.json"):
+            with open("user_database.json", "r") as f:
+                users_list = json.load(f)
+            
+            if not find_user_binary(coustomer_id, users_list):
+                raise HTTPException(status_code=404, detail="Customer ID not found in registration.")
+
+        # 2. Fetch Loans
+        if not os.path.exists(LOAN_DB_FILE_PATH):
+            return []
+
+        with open(LOAN_DB_FILE_PATH, "r") as f:
+            all_loans = json.load(f)
+
+        # 3. Filter history
+        coustomer_history = [
+            loan for loan in all_loans 
+            if loan.get("coustomer_id") == coustomer_id
+        ]
+        
+        return coustomer_history
+
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))

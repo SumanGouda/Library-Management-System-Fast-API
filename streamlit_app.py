@@ -5,6 +5,7 @@ import pandas as pd
 from typing import List, Dict, Any, Optional 
 from datetime import date
 import pathlib
+import time
 
 # --- Configuration ---
 FASTAPI_BASE_URL = "http://127.0.0.1:8000" 
@@ -31,6 +32,8 @@ local_css(css_path)
 def handle_success(message):
     st.session_state.success_message = message
     st.cache_data.clear()
+    st.success(message)
+    time.sleep(1)
     st.rerun()
 
 # --- HELPER FUNCTION: To handle API errors ---
@@ -64,7 +67,7 @@ if 'fetched_book_data' not in st.session_state:
 
 if not st.session_state.view_db:
     # --- UI Layout ---
-    col1, col2 = st.columns([1, 2])
+    col1, col2, col3 = st.columns([1.5, 2, 1])
 
     # 🚀 COLUMN 1: ISBN LOOKUP AND SAVE FEATURE
     with col1:
@@ -153,22 +156,20 @@ if not st.session_state.view_db:
                 
                 except requests.exceptions.ConnectionError:
                     st.error("🚨 Connection Error: Cannot connect to the FastAPI server.")
-        
-        # --- STEP 3: Loan & Status Update ---
-        st.divider() 
+            
+    # Column 2: Borrower History
+    with col2:
+        # --- LOAN & RETURN ---
         st.subheader("🔄 Loan & Status Update")
-
-        loan_isbn = st.text_input("Enter ISBN to Issue or Return", key="loan_isbn_input_final")
         coustomer_id = st.text_input("Coustomer ID", key="customer_id_input_final")
-        
-        col_issue, col_spacer = st.columns([1, 1]) 
+        loan_isbn = st.text_input("Enter ISBN to Issue or Return", key="loan_isbn_input_final")
+        col_issue, col_return = st.columns([1, 1]) 
 
         with col_issue:
             # --- ACTION BUTTON: This button now acts as the final 'Submit' ---
             if st.button("ISSUE BOOK", key="button-77"):
                 if loan_isbn and coustomer_id:
                     cleaned_loan_isbn = loan_isbn.replace("-", "").replace(" ", "")
-                    
                     # 1. Safely convert to integer
                     try:
                         coustomer_id_int = int(coustomer_id)
@@ -182,7 +183,6 @@ if not st.session_state.view_db:
                         "coustomer_id": coustomer_id_int, 
                         "issue_date": date.today().isoformat()
                     }
-                    
                     # 3. API Call
                     with st.spinner("Processing Issue..."):
                         try:
@@ -210,11 +210,10 @@ if not st.session_state.view_db:
                     elif not coustomer_id:
                         st.warning("Please enter the **Customer ID**.")
                         
-        with col_spacer:
+        with col_return:
             if st.button("RETURN BOOK", key="button-78"):
                 if loan_isbn and coustomer_id:
                     cleaned_loan_isbn = loan_isbn.replace("-", "").replace(" ", "")
-                    
                     # Build the payload to match the ReturnRequest Pydantic model
                     try:
                         coustomer_id_int = int(coustomer_id)
@@ -225,17 +224,13 @@ if not st.session_state.view_db:
                         "isbn": cleaned_loan_isbn,
                         "coustomer_id": coustomer_id_int,
                     }
-                    
                     # --- FastAPI Endpoint Call for RETURN ---
                     try:
                         response = requests.post(
                             f"{FASTAPI_BASE_URL}/loans/return/",
                             json=payload
                         )
-                        
                         if response.status_code == 200:
-                            # Success: Loan record updated and book status updated
-                            st.success("✅ Book issued successfully!")
                             handle_success(f"ISBN {cleaned_loan_isbn} *returned* and marked available. Status updated.")
                         else:
                             handle_error(response, "Failed to return book.")
@@ -248,11 +243,122 @@ if not st.session_state.view_db:
                         st.warning("Please enter the **ISBN** to return the book.")
                     elif not coustomer_id:
                         st.warning("Please enter the **Coustomer ID** before clicking the button.")
+        st.divider()
+        
+        # --- Borrower History ---
+        st.subheader("Borrower History")
+        coustomer_id = st.text_input("Customer ID", key="history_id_input")
+        
+        if st.button("VIEW HISTORY", key="borowwer"):
+            if coustomer_id:
+                coustomer_id_clean = coustomer_id.replace("-", "").replace(" ", "")
+                with st.spinner("Fetching borrower history..."):
+                    try:
+                        response = requests.get(f"{FASTAPI_BASE_URL}/loans/coustomer/{coustomer_id_clean}")
+                        if response.status_code == 200:
+                            history_data = response.json()
+                            if history_data:
+                                # --- CALCULATION LOGIC ---
+                                df = pd.DataFrame(history_data)
+
+                                # 1. Convert strings to Date objects
+                                df['due_date'] = pd.to_datetime(df['due_date']).dt.date
+                                today = date.today()
+
+                                # 2. Define a function to handle the "Days Left" text and logic
+                                def get_days_status(row):
+                                    if row['returned'] == True:
+                                        return "✅ RETURNED"
+                                    
+                                    days_diff = (row['due_date'] - today).days
+                                    if days_diff < 0:
+                                        return f"🚨 {abs(days_diff)} Days Overdue"
+                                    return f"{days_diff} Days Remaining"
+
+                                # Apply the status logic
+                                df['Days Status'] = df.apply(get_days_status, axis=1)
+
+                                # 3. Fine Algorithm (Only for non-returned books)
+                                def calc_fine(row):
+                                    if row['returned'] == True: 
+                                        return 0.0
+                                    
+                                    days_diff = (row['due_date'] - today).days
+                                    if days_diff >= 0: 
+                                        return 0.0
+                                    
+                                    fine_per_day = 5 
+                                    return abs(days_diff) * fine_per_day
+
+                                df['Fine (₹)'] = df.apply(calc_fine, axis=1)
+
+                                # 4. Styling for the Librarian
+                                def style_status(val):
+                                    if "✅ RETURNED" in str(val):
+                                        return 'color: green; font-weight: bold'
+                                    elif "🚨" in str(val):
+                                        return 'color: red; font-weight: bold'
+                                    return ''
+
+                                # 5. Final Display Table
+                                display_df = df.rename(columns={'isbn': 'ISBN'})
+                                cols_to_show = ['ISBN', 'Days Status', 'Fine (₹)']
+
+                                st.dataframe(
+                                    display_df[cols_to_show].style.applymap(style_status, subset=['Days Status']),
+                                    use_container_width=True
+                                )
+
+                                # Show summary total fine
+                                total_fine = df['Fine (₹)'].sum()
+                                if total_fine > 0:
+                                    st.error(f"🔴 Total Outstanding Fine: ₹{total_fine}")
+                                else:
+                                    st.success("🟢 No outstanding fines.")
+                                # --- END CALCULATION LOGIC ---
+                                
+                            else:
+                                st.info("No borrowing history found for this ID.")
+                        else:
+                            handle_error(response, "Could not fetch borrower history.")
+                    except requests.exceptions.ConnectionError:
+                        st.error("🚨 Connection Error: Is the FastAPI server running?")
+            else:
+                st.warning("Please enter a customer ID to view history.")
+        
+    # Column 3: Quick Actions
+    with col3:
+        st.subheader("👤 User Registration")
+        with st.expander("Register New Customer"):
+            with st.form("registration_form", clear_on_submit=True):
+                new_id = st.number_input("Assign Customer ID", min_value=1, step=1, value=None, placeholder="Enter ID...", help="")
+                new_name = st.text_input("Full Name", placeholder="Enter name...")
+                new_email = st.text_input("Email Address", placeholder="Enter email...")
+                new_phone = st.text_input("Phone Number", placeholder="Enter phone number...")
+                
+                submit_user = st.form_submit_button("REGISTER USER")
+                
+                if submit_user:
+                    if new_name and new_id:
+                        user_payload = {
+                            "coustomer_id": int(new_id),
+                            "name": new_name,
+                            "email_id": new_email if new_email else "N/A",
+                            "mobile_number": int(new_phone) if new_phone and str(new_phone).isdigit() else 0
+                        }
+                        try:
+                            response = requests.post(f"{FASTAPI_BASE_URL}/customers/", json=user_payload)
+                            if response.status_code == 201:
+                                st.success(f"✅ User {new_name} registered successfully!")
+                            else:
+                                handle_error(response, "Could not register user.")
+                        except requests.exceptions.ConnectionError:
+                            st.error("🚨 Backend server is not running!")
+                    else:
+                        st.warning("Please provide at least a Name and ID.")
             
-    # Column 2: Quick Actions
-    with col2:
-        st.header("Quick Actions")
-        if st.button("🔍 OPEN FULL DATABASE", type="primary", use_container_width=True):
+        st.subheader("Quick Actions")
+        if st.button("OPEN FULL DATABASE", key="open-db"):
             st.session_state.view_db = True
             st.rerun()
         
@@ -266,7 +372,7 @@ else:
     # --- DATABASE VIEW ---
     st.subheader("📊 Full Book Database")
     
-    if st.button("⬅️ Back to Management"):
+    if st.button("Back to Management", key="open-db"):
         st.session_state.view_db = False
         st.rerun()
 

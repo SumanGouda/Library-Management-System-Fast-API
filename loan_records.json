@@ -75,5 +75,40 @@
         "issue_date": "2025-12-16",
         "due_date": "2026-01-15",
         "returned": false
+    },
+    {
+        "isbn": "9781847941831",
+        "coustomer_id": 125,
+        "issue_date": "2025-12-17",
+        "due_date": "2025-12-17",
+        "returned": true
+    },
+    {
+        "isbn": "9781847941831",
+        "coustomer_id": 125,
+        "issue_date": "2025-12-17",
+        "due_date": "2025-12-17",
+        "returned": true
+    },
+    {
+        "isbn": "9781847941831",
+        "coustomer_id": 125,
+        "issue_date": "2025-12-17",
+        "due_date": "2025-12-17",
+        "returned": true
+    },
+    {
+        "isbn": "9781847941831",
+        "coustomer_id": 125,
+        "issue_date": "2025-12-17",
+        "due_date": "2025-12-17",
+        "returned": true
+    },
+    {
+        "isbn": "9781847941831",
+        "coustomer_id": 125,
+        "issue_date": "2025-12-17",
+        "due_date": "2026-01-16",
+        "returned": false
     }
 ]
