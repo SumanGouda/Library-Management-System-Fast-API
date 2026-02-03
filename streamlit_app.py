@@ -358,20 +358,57 @@ if not st.session_state.view_db:
                         st.warning("Please provide at least a Name and ID.")
          
         with st.expander("Delete Customer"):
-            with st.form("delete_form", clear_on_submit=True): 
-                delete_id = int(st.text_input("Customer ID", placeholder="", help=""))
-                submit_delete = st.form_submit_button("DELETE USER", key="delete_user_btn")
+            with st.form("delete_form", clear_on_submit=True):
 
+                # 1️⃣ Raw input (ALWAYS string)
+                delete_id_raw = st.text_input(
+                    "Customer ID",
+                    placeholder="",
+                    help=""
+                )
+
+                # 2️⃣ Submit button
+                submit_delete = st.form_submit_button("DELETE USER")
+
+                # 3️⃣ Handle form submission
                 if submit_delete:
-                    if delete_id:
+
+                    # Debug: show raw input
+                    st.write("🧪 Debug → Raw Input:", repr(delete_id_raw))
+
+                    # Empty input check
+                    if not delete_id_raw.strip():
+                        st.warning("⚠️ Please enter a Customer ID.")
+                        st.stop()
+
+                    # Integer conversion check
+                    try:
+                        delete_id = int(delete_id_raw)
+                    except ValueError:
+                        st.error("❌ Customer ID must be a valid integer.")
+                        st.stop()
+
+                    # Debug: successful conversion
+                    st.write("🧪 Debug → Parsed Customer ID:", delete_id)
+
+                    # API call
+                    with st.spinner("Deleting customer..."):
                         try:
-                            response = requests.delete(f"{FASTAPI_BASE_URL}/customers/{delete_id}")
+                            response = requests.delete(
+                                f"{FASTAPI_BASE_URL}/customers/{delete_id}"
+                            )
+
+                            # Debug: API response
+                            st.write("🧪 Debug → API Status Code:", response.status_code)
+
                             if response.status_code == 200:
-                                st.success(f"✅ User {delete_id} deleted successfully!")
+                                st.success(f"✅ Customer {delete_id} deleted successfully!")
                             else:
                                 handle_error(response, "Could not delete user.")
+
                         except requests.exceptions.ConnectionError:
-                            st.error("🚨 Backend server is not running!")  
+                            st.error("🚨 Backend server is not running!")
+
         st.subheader("Quick Actions")
         if st.button("OPEN FULL DATABASE", key="open-db"):
             st.session_state.view_db = True
