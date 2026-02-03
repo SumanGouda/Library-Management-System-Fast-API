@@ -30,5 +30,13 @@
         "available": false,
         "isbn": "9781847941831",
         "genre": "General"
+    },
+    {
+        "title": "Effective Java",
+        "author": "Joshua Bloch",
+        "pages": 416,
+        "available": true,
+        "isbn": "9780134685991",
+        "genre": "Computers"
     }
 ]

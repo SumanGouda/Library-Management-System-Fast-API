@@ -6,9 +6,27 @@
         "mobile_number": 1254
     },
     {
+        "coustomer_id": 12,
+        "name": "Suman Gouda",
+        "email_id": "sum",
+        "mobile_number": 12
+    },
+    {
+        "coustomer_id": 123,
+        "name": "Suman",
+        "email_id": "dsfa",
+        "mobile_number": 1223
+    },
+    {
         "coustomer_id": 125,
         "name": "fdadfa",
         "email_id": "afa",
+        "mobile_number": 125
+    },
+    {
+        "coustomer_id": 6969,
+        "name": "dsfafdafda",
+        "email_id": "sdfasfda",
         "mobile_number": 125
     }
 ]

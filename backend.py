@@ -6,6 +6,7 @@ import json
 import os
 from datetime import date, timedelta
 
+
 # --- Configuration & Data Model ---
 GOOGLE_BOOKS_API_URL = "https://www.googleapis.com/books/v1/volumes"
 app = FastAPI()
@@ -50,20 +51,21 @@ class RegisterCostomer(BaseModel):
     
 # --- File I/O Helper Functions ---
 def load_data_from_json():
-    """Loads book data from a local JSON file into the global list."""
-    global books_db
+    global books_map
+    books_map = {}
+
     if os.path.exists(DB_FILE_PATH):
         try:
             with open(DB_FILE_PATH, "r") as f:
                 raw_data = json.load(f)
-                # Convert raw data into Pydantic models for validation
-                books_db = [Book(**record) for record in raw_data]
-            print(f"Loaded {len(books_db)} books from {DB_FILE_PATH}")
+                books_map = {
+                    record["isbn"]: Book(**record)
+                    for record in raw_data
+                }
+            print(f"Loaded {len(books_map)} books into hash map")
         except Exception as e:
             print(f"Error loading database: {e}")
-            books_db = []
-    else:
-        print("Database file not found. Starting with an empty database.")
+            books_map = {}
 
 def save_data_to_json():
     """Saves the current global books map back to the JSON file."""
@@ -131,22 +133,21 @@ def register_user_json(user: RegisterCostomer):
         raise Exception(f"Failed to save user: {str(e)}")
 
 # 3. Efficient Binary Search Helper
-def find_user_binary(target_id: int, users_list: list) -> bool:
-    low = 0
-    high = len(users_list) - 1
+def find_user_binary(target_id: int, users_db: list):
+    low, high = 0, len(users_db) - 1
 
     while low <= high:
         mid = (low + high) // 2
-        mid_id = users_list[mid].get("coustomer_id")
-        
+        mid_id = int(users_db[mid]["coustomer_id"])
+
         if mid_id == target_id:
-            return True # User found!
+            return True
         elif mid_id < target_id:
             low = mid + 1
         else:
             high = mid - 1
-            
-    return False # User not found
+
+    return False
         
 # Initialize the database on startup
 load_data_from_json()
@@ -154,48 +155,53 @@ load_loans_from_json()
 
 # --- Google Books API Helper ---
 def fetch_book_data_from_google(isbn: str) -> Optional[dict]:
-    """Queries the Google Books API using ISBN and returns simplified book data."""
+    clean_isbn = str(isbn).strip().replace("-", "").replace(" ", "")
+    url = f"https://www.googleapis.com/books/v1/volumes?q=isbn:{clean_isbn}"
+    headers = {"User-Agent": "Mozilla/5.0"}
+
     try:
-        params = {'q': f'isbn:{isbn}'}
-        response = requests.get(GOOGLE_BOOKS_API_URL, params=params)
-        response.raise_for_status() # Raises an HTTPError for 4xx/5xx status codes
-        
+        response = requests.get(url, headers=headers, timeout=5)
+
+        # 🔴 HANDLE QUOTA EXCEEDED
+        if response.status_code == 429:
+            raise HTTPException(
+                status_code=503,
+                detail="Google Books API quota exceeded. Try again later."
+            )
+
+        response.raise_for_status()
         data = response.json()
-        
-        if data.get('totalItems', 0) > 0 and 'items' in data:
-            volume_info = data['items'][0]['volumeInfo']
-            
-            # Extract authors and join them into a single string for the Book model
-            authors_list = volume_info.get('authors', ["Unknown Author"])
-            single_author = ", ".join(authors_list)
-            
-            # Simple guess for genre based on categories, otherwise default
-            genres = volume_info.get('categories', ["General"])
-            
-            book_info = {
-                "isbn": isbn,
-                "title": volume_info.get('title', 'No Title'),
-                "author": single_author,
-                "pages": volume_info.get('pageCount', 0),
-                "genre": genres[0],
-                "available": True
-            }
-            return book_info
-        
-        return None # Book not found
-        
-    except requests.exceptions.RequestException as e:
-        print(f"Error connecting to Google Books API: {e}")
-        return None
+
+        if data.get("totalItems", 0) == 0:
+            return None
+
+        volume_info = data["items"][0]["volumeInfo"]
+        categories = volume_info.get("categories")
+
+        return {
+            "isbn": clean_isbn,
+            "title": volume_info.get("title", "Unknown Title"),
+            "author": ", ".join(volume_info.get("authors", ["Unknown Author"])),
+            "pages": int(volume_info.get("pageCount", 1)),
+            "genre": categories[0] if categories else "General",
+            "available": True
+        }
+
+    except HTTPException:
+        raise  # rethrow FastAPI exceptions
+
+    except requests.RequestException as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to reach Google Books API: {str(e)}"
+        )
 
 # --- FastAPI Endpoints ---
-@app.post("/customers/", response_model=RegisterCostomer, status_code=201, summary="Add a new customer record")
+@app.post("/customers/", response_model=RegisterCostomer, status_code=201)
 def register_user(user: RegisterCostomer):
-    try:
-        users_db = []
-        file_path = "user_database.json"
+    file_path = "user_database.json"
 
-        # Load existing data
+    try:
         if os.path.exists(file_path):
             with open(file_path, "r") as f:
                 try:
@@ -203,28 +209,50 @@ def register_user(user: RegisterCostomer):
                 except json.JSONDecodeError:
                     users_db = []
 
-        # Check if ID already exists (using binary search before adding)
+        users_db.sort(key=lambda x: int(x["coustomer_id"]))
+
         if find_user_binary(user.coustomer_id, users_db):
             raise HTTPException(status_code=400, detail="User ID already registered.")
 
-        # Add and Sort
         users_db.append(user.model_dump())
-        users_db.sort(key=lambda x: x['coustomer_id'])
+        users_db.sort(key=lambda x: int(x["coustomer_id"]))
 
-        directory = os.path.dirname(file_path)
-        if directory and not os.path.exists(directory):
-            os.makedirs(directory)
-    
-        # Save sorted data
         with open(file_path, "w") as f:
             json.dump(users_db, f, indent=4)
-        
-        return {"message": "User registered successfully", "user": user}
 
+        return user
+
+    except HTTPException:
+        raise
     except Exception as e:
-        if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail=str(e))
 
+# @app.delete("/customers/{customer_id}", summary="Delete user using existing binary search logic")
+# def delete_customer(customer_id: int):
+#     users_db = []
+#     # 1. Use your EXACT function to check if they exist
+#     exists = find_user_binary(customer_id, users_db)
+    
+#     if not exists:
+#         raise HTTPException(status_code=404, detail=f"User {customer_id} not found.")
+    
+#     # 2. Find the index for deletion
+#     user_index = next((i for i, item in enumerate(users_db) if int(item["coustomer_id"]) == customer_id), None)
+    
+#     user = users_db[user_index]
+    
+#     # 3. Safety Check: No active loans
+#     # Using your requirement: must not have anything issued
+#     if len(user.get("issued_books", [])) > 0:
+#         raise HTTPException(
+#             status_code=400, 
+#             detail="Cannot delete: This user still has books in their possession."
+#         )
+    
+#     # 4. Final Deletion
+#     deleted_user = users_db.pop(user_index)
+#     return {"status": "success", "message": f"Customer {customer_id} removed."}
+    
 @app.get("/books/", response_model=List[Book], summary="Retrieve all books from local database")
 def get_all_books():
     global books_map
@@ -237,9 +265,7 @@ def get_all_books():
 
 @app.get("/search-isbn/{isbn}", summary="Look up book details by ISBN using Google Books API")
 def lookup_book(isbn: str):
-    global books_map
-    
-    # OPTIMIZED: Constant time check
+    # Ensure we are checking against the cleaned version of the map
     if isbn in books_map:
         raise HTTPException(status_code=400, detail=f"Book with ISBN {isbn} is already in the database.")
         
@@ -248,8 +274,9 @@ def lookup_book(isbn: str):
     if book_data:
         return book_data 
     else:
+        # This triggers the red box you saw in your screenshot
         raise HTTPException(status_code=404, detail=f"Book with ISBN {isbn} not found on Google Books API.")
-    
+
 @app.post("/books/", response_model=Book, status_code=201, summary="Add a new book record")
 def add_book(book: Book):
     global books_map

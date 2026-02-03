@@ -22,7 +22,7 @@ st.title("📚 Book Management System")
 # Function to load local CSS
 def local_css(file_name):
     with open(file_name) as f:
-        st.html(f'<style>{f.read()}</style>')
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 # Load the External CSS
 css_path = pathlib.Path("style.css") 
@@ -331,12 +331,12 @@ if not st.session_state.view_db:
         st.subheader("👤 User Registration")
         with st.expander("Register New Customer"):
             with st.form("registration_form", clear_on_submit=True):
-                new_id = st.number_input("Assign Customer ID", min_value=1, step=1, value=None, placeholder="Enter ID...", help="")
-                new_name = st.text_input("Full Name", placeholder="Enter name...")
-                new_email = st.text_input("Email Address", placeholder="Enter email...")
-                new_phone = st.text_input("Phone Number", placeholder="Enter phone number...")
+                new_id = st.text_input("Assign Customer ID", placeholder="", help="")
+                new_name = st.text_input("Full Name", placeholder="")
+                new_email = st.text_input("Email Address", placeholder="")
+                new_phone = st.text_input("Phone Number", placeholder="")
                 
-                submit_user = st.form_submit_button("REGISTER USER")
+                submit_user = st.form_submit_button("REGISTER USER", key="register_user_btn")
                 
                 if submit_user:
                     if new_name and new_id:
@@ -356,7 +356,22 @@ if not st.session_state.view_db:
                             st.error("🚨 Backend server is not running!")
                     else:
                         st.warning("Please provide at least a Name and ID.")
-            
+         
+        with st.expander("Delete Customer"):
+            with st.form("delete_form", clear_on_submit=True): 
+                delete_id = int(st.text_input("Customer ID", placeholder="", help=""))
+                submit_delete = st.form_submit_button("DELETE USER", key="delete_user_btn")
+
+                if submit_delete:
+                    if delete_id:
+                        try:
+                            response = requests.delete(f"{FASTAPI_BASE_URL}/customers/{delete_id}")
+                            if response.status_code == 200:
+                                st.success(f"✅ User {delete_id} deleted successfully!")
+                            else:
+                                handle_error(response, "Could not delete user.")
+                        except requests.exceptions.ConnectionError:
+                            st.error("🚨 Backend server is not running!")  
         st.subheader("Quick Actions")
         if st.button("OPEN FULL DATABASE", key="open-db"):
             st.session_state.view_db = True
@@ -388,3 +403,7 @@ else:
         st.dataframe(df_books, use_container_width=True, height=500)
     else:
         st.info("No books found in the database.")
+
+
+## Next to add :
+    # Remove user based on there ID

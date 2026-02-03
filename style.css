@@ -1,3 +1,13 @@
+/* Target the entire Streamlit container */
+.stApp {
+    background-color: #0e1117; /* Replace with your preferred color */
+}
+
+/* Optional: Targets the header area to ensure no white bars appear */
+header[data-testid="stHeader"] {
+    background-color: rgba(0,0,0,0); /* Transparent header */
+}
+
 /* Target the actual button element within the Streamlit container */
 .st-key-submit button {
     /* Reset Streamlit's default box model to prevent the dark box/border */
@@ -53,7 +63,7 @@
     padding: 0 !important;
     display: inline-block !important;
 }
-/* ===== SAVE BUTTON===== */
+/* ===== SUBMIT BUTTON===== */
 .st-key-save_button button {
     all: unset !important;
     box-sizing: border-box !important;
@@ -145,7 +155,7 @@
     display: inline-block !important;
 }
 
-/* ===== ISSUE BUTTONS ===== */
+/* ===== ISSUE BOOK BUTTONS ===== */
 .st-key-button-77,
 .st-key-button-77 * {
   background: transparent !important;
@@ -241,7 +251,7 @@
   cursor: not-allowed !important;
 }
 
-/* ===== RETURN BUTTONS ===== */
+/* ===== RETURN BOOK BUTTONS ===== */
 .st-key-button-78,
 .st-key-button-78 * {
   background: transparent !important;
@@ -449,98 +459,124 @@
   cursor: not-allowed !important;
 }
 
-/* ===== BOROWWER BUTTONS ===== */
-.st-key-borowwer,
-.st-key-borowwer * {
+/* ===== BUTTON SYNC: BORROWER & REGISTER ===== */
+.st-key-borowwer, .st-key-register_user_btn,
+.st-key-borowwer *, .st-key-register_user_btn * {
   background: transparent !important;
   background-color: transparent !important;
   box-shadow: none !important;
   border: none !important;
 }
 
-/* Main button */
-.st-key-borowwer {
+.st-key-borowwer, .st-key-register_user_btn {
   appearance: none !important;
-  -webkit-appearance: none !important;
-
   color: #ffffff !important;
   cursor: pointer !important;
   font-family: CerebriSans-Regular,-apple-system,system-ui,Roboto,sans-serif !important;
   font-size: 16px !important;
   font-weight: bold !important;
-
-  min-height: 40px !important;         
-  padding: 7px 20px !important;       
-
+  min-height: 40px !important;
+  padding: 7px 20px !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-
   position: relative !important;
   border-radius: 100px !important;
-
   z-index: 1 !important;
 }
 
-/* Inner Streamlit div & span */
-.st-key-borowwer > div,
-.st-key-borowwer > div > span {
-  background: transparent !important;
-  background-color: transparent !important;
-  box-shadow: none !important;
-}
-
-/* Gradient layer */
-.st-key-borowwer::after {
+/* Gradient layer for both */
+.st-key-borowwer::after, .st-key-register_user_btn::after {
   content: "" !important;
   position: absolute !important;
-
-  inset: 3px !important;               /* thinner border look */
+  inset: 3px !important;
   border-radius: 100px !important;
-
-  background-image: linear-gradient(
-    92.83deg,
-    #ff7426 0%,
-    #f93a13 100%
-  ) !important;
-
+  background-image: linear-gradient(92.83deg, #ff7426 0%, #f93a13 100%) !important;
   z-index: -1 !important;
   transition: inset 120ms ease-out !important;
 }
 
-/* Shadow layer */
-.st-key-borowwer::before {
+/* Shadow layer for both */
+.st-key-borowwer::before, .st-key-register_user_btn::before {
   content: "" !important;
   position: absolute !important;
   inset: -2.5px !important;
-  background-color: rgba(249, 58, 19, 0.32) !important; /* exact shadow */
+  background-color: rgba(249, 58, 19, 0.32) !important;
   border-radius: 100px !important;
-  z-index: -2 !important; /* behind gradient */
+  z-index: -2 !important;
 }
 
-/* Hover */
-.st-key-borowwer:hover::after {
+/* Hover & Active states */
+.st-key-borowwer:hover::after, .st-key-register_user_btn:hover::after {
   inset: 0 !important;
 }
 
-/* Active */
-.st-key-borowwer:active {
-  color: #dddddd !important;
+
+/* ===== INPUT BOX ===== */
+/* Container */
+.custom-input-container {
+  font-family: 'Segoe UI', sans-serif;
+  margin: 1.5em 0;
+  position: relative;
+  width: 100%;
 }
 
-.st-key-borowwer:active::after {
-  background-image: linear-gradient(
-      0deg,
-      rgba(0, 0, 0, 0.2),
-      rgba(0, 0, 0, 0.2)
-    ),
-    linear-gradient(92.83deg, #ff7426 0%, #f93a13 100%) !important;
-
-  inset: 3px !important;
+/* The actual input box */
+.custom-input-container input {
+  font-size: 1rem;
+  padding: 0.8em;
+  outline: none;
+  border: 2px solid #ff6e1d; /* Matches your orange theme */
+  background-color: transparent;
+  border-radius: 20px;
+  width: 100%;
+  color: white;
 }
 
-/* Disabled */
-.st-key-borowwer:disabled {
-  opacity: 0.3 !important;
-  cursor: not-allowed !important;
+/* The label that floats */
+.custom-input-container label {
+  font-size: 1rem;
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 0.8em;
+  margin-left: 0.5em;
+  pointer-events: none;
+  transition: all 0.3s ease;
+  color: #ff6e1d;
+}
+
+/* Floating logic: When focused or typing */
+.custom-input-container input:focus ~ label,
+.custom-input-container input:not(:placeholder-shown) ~ label {
+  transform: translateY(-50%) scale(.8);
+  margin: 0;
+  margin-left: 1.3em;
+  padding: 0 0.4em;
+  background-color: #0e1117; /* Matches Streamlit dark background */
+}
+
+.custom-input-container input:focus {
+  border-color: #2cfff2; /* Neon blue on focus */
+}
+/* Targets the Streamlit Input Wrapper */
+div[data-baseweb="input"] {
+    border: 2px solid #00d5ff !important;
+    border-radius: 20px !important;
+    background: transparent !important;
+}
+
+/* Move the Streamlit Label (the one above the box) down inside the box */
+.stTextInput label, .stNumberInput label {
+    transform: translateY(35px) translateX(15px);
+    transition: all 0.3s ease;
+    color: #ffffff !important;
+    pointer-events: none;
+}
+
+/* When the user clicks (Focus), move the label up and shrink it */
+.stTextInput:focus-within label, .stNumberInput:focus-within label {
+    transform: translateY(10px) translateX(15px) scale(0.8);
+    background-color: #0e1117; /* Match your app background */
+    padding: 0 5px;
 }
